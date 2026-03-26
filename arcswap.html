@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ArcSwap — DEX on Arc Testnet</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #050810;
+      --card: #0d1220;
+      --border: #1a2340;
+      --accent: #00e5ff;
+      --accent2: #7b5ea7;
+      --text: #e8eaf6;
+      --muted: #4a5580;
+      --success: #00e676;
+      --error: #ff5252;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%;
+      left: -50%;
+      width: 200%;
+      height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, rgba(0,229,255,0.04) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, rgba(123,94,167,0.06) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 460px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .logo {
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 4px;
+      color: var(--accent);
+      text-transform: uppercase;
+      margin-bottom: 8px;
+      opacity: 0.8;
+    }
+
+    h1 {
+      font-size: 42px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 0%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1;
+    }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+      font-family: 'Space Mono', monospace;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 28px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.4;
+    }
+
+    .connect-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--accent) 0%, #0099cc 100%);
+      color: #000;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Syne', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.5px;
+    }
+
+    .connect-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(0,229,255,0.25);
+    }
+
+    .connect-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .wallet-info {
+      display: none;
+      align-items: center;
+      gap: 8px;
+      background: rgba(0,229,255,0.06);
+      border: 1px solid rgba(0,229,255,0.15);
+      border-radius: 10px;
+      padding: 10px 14px;
+      margin-bottom: 20px;
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      color: var(--accent);
+    }
+
+    .wallet-dot {
+      width: 7px;
+      height: 7px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .swap-section { display: none; }
+
+    .token-box {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px 18px;
+      margin-bottom: 8px;
+    }
+
+    .token-label {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+    }
+
+    .token-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .token-input {
+      background: transparent;
+      border: none;
+      outline: none;
+      font-family: 'Space Mono', monospace;
+      font-size: 26px;
+      color: var(--text);
+      width: 100%;
+      min-width: 0;
+    }
+
+    .token-input::placeholder { color: var(--muted); }
+
+    .token-badge {
+      background: var(--border);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+      color: var(--accent);
+      font-family: 'Space Mono', monospace;
+    }
+
+    .token-balance {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      margin-top: 8px;
+    }
+
+    .swap-arrow {
+      text-align: center;
+      margin: 4px 0;
+      font-size: 20px;
+      color: var(--muted);
+    }
+
+    .direction-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .dir-btn {
+      flex: 1;
+      padding: 10px;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .dir-btn.active {
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(0,229,255,0.05);
+    }
+
+    .swap-btn {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--accent2) 0%, #4a2d8a 100%);
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-family: 'Syne', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 8px;
+      letter-spacing: 0.5px;
+    }
+
+    .swap-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(123,94,167,0.35);
+    }
+
+    .swap-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .rate-info {
+      text-align: center;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+      margin-top: 14px;
+    }
+
+    .status {
+      margin-top: 14px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-family: 'Space Mono', monospace;
+      display: none;
+      word-break: break-all;
+    }
+
+    .status.success {
+      background: rgba(0,230,118,0.08);
+      border: 1px solid rgba(0,230,118,0.2);
+      color: var(--success);
+    }
+
+    .status.error {
+      background: rgba(255,82,82,0.08);
+      border: 1px solid rgba(255,82,82,0.2);
+      color: var(--error);
+    }
+
+    .status.loading {
+      background: rgba(0,229,255,0.06);
+      border: 1px solid rgba(0,229,255,0.15);
+      color: var(--accent);
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 11px;
+      color: var(--muted);
+      font-family: 'Space Mono', monospace;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .network-badge {
+      display: inline-block;
+      background: rgba(0,229,255,0.08);
+      border: 1px solid rgba(0,229,255,0.2);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 10px;
+      font-family: 'Space Mono', monospace;
+      margin-top: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo">Built on Arc Testnet</div>
+      <h1>ArcSwap</h1>
+      <div class="subtitle">// decentralized token swap</div>
+      <div class="network-badge">Chain ID: 5042002</div>
+    </header>
+
+    <div class="card">
+      <div class="wallet-info" id="walletInfo">
+        <div class="wallet-dot"></div>
+        <span id="walletAddr">Connected</span>
+      </div>
+
+      <button class="connect-btn" id="connectBtn" onclick="connectWallet()">
+        Connect Wallet
+      </button>
+
+      <div class="swap-section" id="swapSection">
+        <div style="margin-bottom:16px;">
+          <div style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px;">Direction</div>
+          <div class="direction-row">
+            <button class="dir-btn active" id="btn-atob" onclick="setDirection('atob')">ART → ART2</button>
+            <button class="dir-btn" id="btn-btoa" onclick="setDirection('btoa')">ART2 → ART</button>
+          </div>
+        </div>
+
+        <div class="token-box">
+          <div class="token-label">You Pay</div>
+          <div class="token-row">
+            <input class="token-input" id="amountIn" type="number" placeholder="0.0" oninput="updateOutput()"/>
+            <div class="token-badge" id="tokenInLabel">ART</div>
+          </div>
+          <div class="token-balance" id="balanceIn">Balance: —</div>
+        </div>
+
+        <div class="swap-arrow">↓</div>
+
+        <div class="token-box">
+          <div class="token-label">You Receive</div>
+          <div class="token-row">
+            <input class="token-input" id="amountOut" placeholder="0.0" readonly/>
+            <div class="token-badge" id="tokenOutLabel">ART2</div>
+          </div>
+          <div class="token-balance" id="balanceOut">Balance: —</div>
+        </div>
+
+        <div class="rate-info" id="rateInfo">Rate: 1 ART = 2 ART2</div>
+
+        <button class="swap-btn" id="swapBtn" onclick="doSwap()">Swap</button>
+
+        <div class="status" id="status"></div>
+      </div>
+    </div>
+
+    <footer>
+      <div>Contract: <a href="https://testnet.arcscan.app/address/0xa030E08BaA9A45BB563042818fA42C27e85C93cc" target="_blank">0xa030...93cc</a></div>
+      <div style="margin-top:4px;">Built by labiletooky0 · Arc Testnet</div>
+    </footer>
+  </div>
+
+  <script>
+    const ARCSWAP = "0xa030E08BaA9A45BB563042818fA42C27e85C93cc";
+    const TOKEN_A = "0x060C3c4929b276D8dAD5A0e31F0eA06890b7f69c";
+    const TOKEN_B = "0x7888Da753f5D964987931741C8ca2044F6c1c463";
+    const ARC_CHAIN_ID = "0x4CEB52"; // 5042002 in hex
+
+    const ERC20_ABI = [
+      "function approve(address spender, uint256 amount) returns (bool)",
+      "function balanceOf(address) view returns (uint256)",
+      "function allowance(address owner, address spender) view returns (uint256)"
+    ];
+
+    const SWAP_ABI = [
+      "function swapAforB(uint256 amountA)",
+      "function swapBforA(uint256 amountB)"
+    ];
+
+    let provider, signer, userAddress;
+    let direction = "atob"; // atob or btoa
+
+    async function connectWallet() {
+      if (!window.ethereum) return showStatus("No wallet found. Install MetaMask or Rabby.", "error");
+      try {
+        provider = new ethers.BrowserProvider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+
+        // Switch to Arc Testnet
+        try {
+          await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_CHAIN_ID }] });
+        } catch (e) {
+          if (e.code === 4902) {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [{ chainId: ARC_CHAIN_ID, chainName: "Arc Testnet", rpcUrls: ["https://rpc.testnet.arc.network"], nativeCurrency: { name: "USDC", symbol: "USDC", decimals: 18 }, blockExplorerUrls: ["https://testnet.arcscan.app"] }]
+            });
+          }
+        }
+
+        signer = await provider.getSigner();
+        userAddress = await signer.getAddress();
+
+        document.getElementById("walletInfo").style.display = "flex";
+        document.getElementById("walletAddr").textContent = userAddress.slice(0,6) + "..." + userAddress.slice(-4);
+        document.getElementById("connectBtn").style.display = "none";
+        document.getElementById("swapSection").style.display = "block";
+
+        await loadBalances();
+      } catch (e) {
+        showStatus("Connection failed: " + e.message, "error");
+      }
+    }
+
+    async function loadBalances() {
+      try {
+        const tokenA = new ethers.Contract(TOKEN_A, ERC20_ABI, provider);
+        const tokenB = new ethers.Contract(TOKEN_B, ERC20_ABI, provider);
+        const balA = await tokenA.balanceOf(userAddress);
+        const balB = await tokenB.balanceOf(userAddress);
+        const fmtA = parseFloat(ethers.formatUnits(balA, 18)).toFixed(2);
+        const fmtB = parseFloat(ethers.formatUnits(balB, 18)).toFixed(2);
+
+        if (direction === "atob") {
+          document.getElementById("balanceIn").textContent = "Balance: " + fmtA + " ART";
+          document.getElementById("balanceOut").textContent = "Balance: " + fmtB + " ART2";
+        } else {
+          document.getElementById("balanceIn").textContent = "Balance: " + fmtB + " ART2";
+          document.getElementById("balanceOut").textContent = "Balance: " + fmtA + " ART";
+        }
+      } catch(e) {}
+    }
+
+    function setDirection(dir) {
+      direction = dir;
+      document.getElementById("btn-atob").classList.toggle("active", dir === "atob");
+      document.getElementById("btn-btoa").classList.toggle("active", dir === "btoa");
+      document.getElementById("tokenInLabel").textContent = dir === "atob" ? "ART" : "ART2";
+      document.getElementById("tokenOutLabel").textContent = dir === "atob" ? "ART2" : "ART";
+      document.getElementById("rateInfo").textContent = dir === "atob" ? "Rate: 1 ART = 2 ART2" : "Rate: 2 ART2 = 1 ART";
+      document.getElementById("amountIn").value = "";
+      document.getElementById("amountOut").value = "";
+      loadBalances();
+    }
+
+    function updateOutput() {
+      const val = parseFloat(document.getElementById("amountIn").value) || 0;
+      document.getElementById("amountOut").value = direction === "atob" ? (val * 2).toFixed(4) : (val / 2).toFixed(4);
+    }
+
+    async function doSwap() {
+      const amtStr = document.getElementById("amountIn").value;
+      if (!amtStr || parseFloat(amtStr) <= 0) return showStatus("Enter an amount.", "error");
+
+      const btn = document.getElementById("swapBtn");
+      btn.disabled = true;
+      showStatus("Approving token...", "loading");
+
+      try {
+        const amt = ethers.parseUnits(amtStr, 18);
+        const tokenIn = new ethers.Contract(direction === "atob" ? TOKEN_A : TOKEN_B, ERC20_ABI, signer);
+        const swap = new ethers.Contract(ARCSWAP, SWAP_ABI, signer);
+
+        const approveTx = await tokenIn.approve(ARCSWAP, amt);
+        await approveTx.wait();
+
+        showStatus("Swapping...", "loading");
+        const swapTx = direction === "atob" ? await swap.swapAforB(amt) : await swap.swapBforA(amt);
+        await swapTx.wait();
+
+        showStatus("✓ Swap successful! Tx: " + swapTx.hash, "success");
+        document.getElementById("amountIn").value = "";
+        document.getElementById("amountOut").value = "";
+        await loadBalances();
+      } catch (e) {
+        showStatus("Failed: " + (e.reason || e.message), "error");
+      }
+
+      btn.disabled = false;
+    }
+
+    function showStatus(msg, type) {
+      const el = document.getElementById("status");
+      el.textContent = msg;
+      el.className = "status " + type;
+      el.style.display = "block";
+    }
+  </script>
+</body>
+</html>
